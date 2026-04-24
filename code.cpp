@@ -1,26 +1,23 @@
-#include <iostream>
-#include <vector>
+#include <cstdio>
+#include <utility>
 #include <algorithm>
+#include <functional>
 
 template<class Key, class Compare = std::less<Key>>
 class ESet {
-public:
     enum Color { RED, BLACK };
     struct Node {
         Key key;
         Node *left, *right, *parent;
-        Color color;
         int size;
-
-        Node() : left(nullptr), right(nullptr), parent(nullptr), color(BLACK), size(0) {}
-        Node(const Key& k, Node* nil) : key(k), left(nil), right(nil), parent(nil), color(RED), size(1) {}
+        Color color;
+        Node() : left(nullptr), right(nullptr), parent(nullptr), size(0), color(BLACK) {}
+        Node(const Key& k, Node* nil) : key(k), left(nil), right(nil), parent(nil), size(1), color(RED) {}
     };
 
-private:
-    Node *root;
-    Node *nil;
+    Node *root, *nil;
     Compare comp;
-    int _size;
+    int _count;
 
     void update_size(Node* x) {
         if (x != nil) {
@@ -221,8 +218,7 @@ public:
                     node = y;
                     y = y->parent;
                 }
-                if (y == set->nil) return *this; // Already at begin
-                node = y;
+                if (y != set->nil) node = y;
             }
             return *this;
         }
@@ -233,7 +229,7 @@ public:
         }
     };
 
-    ESet() : _size(0) {
+    ESet() : _count(0) {
         nil = new Node();
         nil->left = nil->right = nil->parent = nil;
         nil->size = 0;
@@ -244,7 +240,7 @@ public:
         clear(root);
         delete nil;
     }
-    ESet(const ESet& other) : _size(other._size), comp(other.comp) {
+    ESet(const ESet& other) : _count(other._count), comp(other.comp) {
         nil = new Node();
         nil->left = nil->right = nil->parent = nil;
         nil->size = 0;
@@ -254,15 +250,19 @@ public:
     ESet& operator=(const ESet& other) {
         if (this != &other) {
             clear(root);
-            _size = other._size;
+            _count = other._count;
             comp = other.comp;
             root = copy(other.root, nil, other.nil);
         }
         return *this;
     }
-    ESet(ESet&& other) noexcept : root(other.root), nil(other.nil), comp(other.comp), _size(other._size) {
-        other.root = other.nil = nullptr;
-        other._size = 0;
+    ESet(ESet&& other) noexcept : root(other.root), nil(other.nil), comp(other.comp), _count(other._count) {
+        other.nil = new Node();
+        other.nil->left = other.nil->right = other.nil->parent = other.nil;
+        other.nil->size = 0;
+        other.nil->color = BLACK;
+        other.root = other.nil;
+        other._count = 0;
     }
     ESet& operator=(ESet&& other) noexcept {
         if (this != &other) {
@@ -271,9 +271,13 @@ public:
             root = other.root;
             nil = other.nil;
             comp = other.comp;
-            _size = other._size;
-            other.root = other.nil = nullptr;
-            other._size = 0;
+            _count = other._count;
+            other.nil = new Node();
+            other.nil->left = other.nil->right = other.nil->parent = other.nil;
+            other.nil->size = 0;
+            other.nil->color = BLACK;
+            other.root = other.nil;
+            other._count = 0;
         }
         return *this;
     }
@@ -295,7 +299,6 @@ public:
         z->left = z->right = nil;
         z->color = RED;
         
-        // Update sizes up to root
         Node* temp = z;
         while (temp != nil) {
             update_size(temp);
@@ -303,7 +306,7 @@ public:
         }
 
         insert_fixup(z);
-        _size++;
+        _count++;
         return {iterator(z, this), true};
     }
 
@@ -342,7 +345,6 @@ public:
             y->color = z->color;
         }
 
-        // Update sizes from x's parent up to root
         Node* temp = x->parent;
         while (temp != nil) {
             update_size(temp);
@@ -351,7 +353,7 @@ public:
 
         if (y_original_color == BLACK) erase_fixup(x);
         delete z;
-        _size--;
+        _count--;
         return 1;
     }
 
@@ -388,7 +390,7 @@ public:
         return count_less(r, true) - count_less(l, false);
     }
 
-    size_t size() const noexcept { return _size; }
+    size_t size() const noexcept { return _count; }
     iterator begin() const noexcept {
         Node* x = root;
         if (x == nil) return end();
@@ -442,7 +444,6 @@ int main() {
                 break;
             case 5:
                 if (valid) {
-                    auto it_prev = it;
                     if (it == s[it_a].begin()) valid = 0;
                     else --it;
                 }
@@ -465,3 +466,4 @@ int main() {
     }
     return 0;
 }
+
